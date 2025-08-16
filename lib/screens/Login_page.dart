@@ -2,35 +2,42 @@ import 'package:chatapp/constants.dart';
 import 'package:chatapp/helper/show_snack_bar.dart';
 import 'package:chatapp/screens/Login_page.dart';
 import 'package:chatapp/screens/chat_page.dart';
+import 'package:chatapp/screens/cubits/login_cubit.dart';
 import 'package:chatapp/screens/register_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:modal_progress_hud_nsn/modal_progress_hud_nsn.dart';
 
 import '../widjets/custom_buttom.dart';
 import '../widjets/custom_textfeild.dart';
 
-class LoginPage extends StatefulWidget {
-  LoginPage({super.key});
 
-  static String id = 'LoginPage';
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
+class LoginPage extends StatelessWidget {
   String? password;
-
   String? email;
-
   GlobalKey<FormState> formKey = GlobalKey();
+  static String id = 'LoginPage';
 
   bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
-    return ModalProgressHUD(
+    return BlocListener<LoginCubit, LoginState>(
+  listener: (context, state) {
+     if(state is LoginLoading){
+       isLoading = true;
+     }
+     else if(state is LoginSuccess){
+       isLoading = false;
+       Navigator.pushNamed(context, ChatPage.id);
+     }
+     else if(state is LoginFailure){
+       isLoading = false;
+       showSnackBar(context, state.errMessage);
+     }
+  },
+  child: ModalProgressHUD(
       inAsyncCall: isLoading,
       child: Scaffold(
         backgroundColor: Color(0xFF25D366),
@@ -49,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
               child: ListView(
                 children: [
                   SizedBox(height: 50),
-                  Image.asset(klogo, height: 140),
+                  Image.asset('assets/images/whatsapp.png', height: 140),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -99,51 +106,8 @@ class _LoginPageState extends State<LoginPage> {
                   CustomButtom(
                     ontap: () async {
                       if (formKey.currentState!.validate()) {
-                        setState(() {
-                          isLoading = true;
-                        });
-                        formKey.currentState!.save();
-                        try {
-                          await loginAuth();
-                          showSnackBar(context, 'Login successful');
-                          Navigator.pushNamed(
-                            context,
-                            ChatPage.id,
-                            arguments: email,
-                          );
-                          // Navigate to next page if needed
-                        } on FirebaseAuthException catch (e) {
-                          if (e.code == 'user-not-found') {
-                            showSnackBar(
-                              context,
-                              'No user found for that email.',
-                            );
-                          } else if (e.code == 'wrong-password') {
-                            showSnackBar(
-                              context,
-                              'Incorrect password.',
-                            );
-                          } else if (e.code == 'invalid-email') {
-                            showSnackBar(
-                              context,
-                              'Invalid email address.',
-                            );
-                          } else {
-                            showSnackBar(
-                              context,
-                              'Authentication failed. Please try again.',
-                            );
-                          }
-                        } catch (e) {
-                          showSnackBar(
-                            context,
-                            'An error occurred. Please try again.',
-                          );
-                        } finally {
-                          setState(() {
-                            isLoading = false;
-                          });
-                        }
+                        BlocProvider.of<LoginCubit>(context).loginAuth(email: email!, password: password!);
+                      } else {
                       }
                     },
                     text: 'Login',
@@ -184,7 +148,8 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-    );
+    ),
+);
   }
 
   Future<void> loginAuth() async {

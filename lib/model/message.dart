@@ -3,6 +3,10 @@ class Message{
 final String id;
   Message(this.message, this.id);
   factory Message.fromJson(json) {
-return Message(json['message'],json['id']);
+    return Message(
+      json['message'] ?? '',
+      json['id'] ?? '',
+    );
   }
+
 }
